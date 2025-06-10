@@ -1,0 +1,142 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## **PRD: Modelo de Machine Learning para Seleção de Ações no Mercado Brasileiro Baseado em "Value" e "Quality Investing"**
+
+### 1. Introdução e Visão Geral
+
+Este documento descreve os requisitos para a criação de um modelo de Machine Learning (ML) destinado a identificar oportunidades de investimento de longo prazo na B3 (Bolsa de Valores do Brasil). [cite_start]A abordagem se inspira diretamente na metodologia de "Value Investing" (Investimento em Valor) e "Quality Investing" (Investimento em Qualidade), conforme detalhado no estudo "Machine learning-based stock picking using value investing and quality features"[cite: 1].
+
+[cite_start]O objetivo é automatizar e escalar a análise fundamentalista de empresas, permitindo a identificação de ações que estejam sendo negociadas abaixo de seu "valor intrínseco" [cite: 2] [cite_start]e que possuam características de alta qualidade, com o potencial de gerar retornos anualizados superiores ao mercado em um horizonte de 1 a 3 anos[cite: 9, 101].
+
+### 2. O Problema
+
+Investidores de longo prazo no mercado brasileiro, sejam individuais ou institucionais, enfrentam desafios significativos:
+
+* **Sobrecarga de Informação:** Analisar centenas de empresas listadas, com seus respectivos balanços trimestrais, fatos relevantes e notícias, é uma tarefa hercúlea e demorada.
+* [cite_start]**Complexidade da Análise:** A avaliação do "valor intrínseco" de uma empresa é um processo subjetivo e complexo, que exige profundo conhecimento em finanças e contabilidade[cite: 20, 21].
+* [cite_start]**Ineficiências de Mercado:** O mercado de ações pode ser ineficiente no curto prazo, com preços que desviam significativamente do valor real das empresas devido ao pessimismo, otimismo exagerado ou falta de cobertura por analistas[cite: 17, 36].
+* **Falta de Ferramentas:** Ferramentas acessíveis que combinam rigorosamente os princípios de Value e Quality Investing de forma sistemática e automatizada são escassas no Brasil.
+
+Nossa solução visa resolver esses problemas, fornecendo uma ferramenta que filtra o ruído e destaca um número gerenciável de ações com alta probabilidade de sucesso a longo prazo.
+
+### 3. Objetivos e Metas (OKRs)
+
+* **Objetivo 1: Desenvolver um modelo de ML de alta precisão para seleção de ações.**
+    * [cite_start]**KR 1 (Resultado Chave):** Atingir uma "Precisão de Grau de Investimento" (percentual de ações selecionadas que entregam um retorno anualizado > 15% em 3 anos) superior a 80%, em linha com os resultados do artigo de referência[cite: 9, 243].
+    * **KR 2:** Realizar um backtest de um portfólio simples baseado nas recomendações do modelo que supere o índice IBOVESPA e o Índice Small Cap (SMLL) em pelo menos 5 pontos percentuais ao ano durante o período de teste.
+    * [cite_start]**KR 3:** O modelo deve ter uma precisão (precision) nos testes superior a 70%, priorizando a qualidade das escolhas em detrimento da quantidade (recall)[cite: 190, 191].
+
+* **Objetivo 2: Construir um pipeline de dados robusto e automatizado.**
+    * **KR 1:** Ingerir e processar com sucesso os dados financeiros de 95% das empresas do índice IBRX 100.
+    * **KR 2:** Automatizar a extração de dados de demonstrativos financeiros históricos (PDFs) via scraping e LLM com uma taxa de acerto de 90% nos campos-chave (e.g., Receita Líquida, Lucro Líquido).
+    * **KR 3:** Manter o pipeline de dados com um uptime de 99%, atualizando os dados de mercado diariamente e os dados fundamentais trimestralmente.
+
+### 4. Metodologia do Modelo
+
+A abordagem metodológica será uma adaptação direta da pesquisa de Priel e Rokach, aplicada ao contexto brasileiro.
+
+#### 4.1. Formulação do Problema
+[cite_start]O problema será tratado como **classificação binária**[cite: 99]. Para cada ação em um determinado período (semana), o modelo irá prever se ela pertence à classe "Positiva" (1) ou "Negativa" (0).
+
+#### 4.2. Definição da Classe (Alvo)
+A definição da classe é o coração da estratégia de value investing e será replicada cuidadosamente:
+* [cite_start]Uma amostra (ação, data) será rotulada como **classe 1 (Positiva)** se, e somente se, duas condições forem atendidas[cite: 141]:
+    1.  O "desconto" atual da ação (baseado em um múltiplo de valuation) for maior que uma **margem de segurança (mos)** pré-definida.
+    2.  O retorno máximo da ação dentro dos próximos **yh anos** for maior ou igual à mesma **margem de segurança (mos)**.
+* [cite_start]Caso contrário, a amostra é rotulada como **classe 0 (Negativa)**[cite: 142].
+
+[cite_start]Testaremos diferentes pares de `<mos, yh>`, por exemplo, `mos` variando de 20% a 70% e `yh` variando de 1 a 3 anos, para criar um ensemble de classificadores[cite: 133].
+
+#### 4.3. Extração de Features
+
+[cite_start]O modelo utilizará três categorias de features, calculadas semanalmente para cada empresa[cite: 146]:
+
+* [cite_start]**Features de Valor (Value Features - aprox. 6 features):** [cite: 112]
+    * [cite_start]Em vez de usar múltiplos brutos, calcularemos os múltiplos (Preço/Lucro, Preço/Valor Patrimonial, EV/EBITDA) [cite: 113] [cite_start]e os compararemos com a **distribuição histórica do múltiplo para o setor da empresa no Brasil**[cite: 92, 119].
+    * [cite_start]Isso gera features mais precisas, como o percentil do múltiplo atual da empresa dentro da distribuição histórica de seu setor e a razão entre o valor atual e os percentis 25, 50 e 75[cite: 120].
+
+* [cite_start]**Features de Qualidade (Quality Features - aprox. 22 features):** [cite: 124]
+    * [cite_start]Implementaremos um conjunto diverso de métricas de qualidade, baseadas em frameworks acadêmicos consolidados como os de Graham, Piotroski (F-Score), Greenblatt, e Novy-Marx[cite: 132].
+    * Essas métricas cobrem domínios como:
+        * [cite_start]**Rentabilidade e Crescimento:** Crescimento do Lucro por Ação, ROE (Retorno sobre o Patrimônio Líquido), ROIC (Retorno sobre o Capital Investido)[cite: 60, 132].
+        * [cite_start]**Eficiência e Alavancagem:** Giro do Ativo, Margem Bruta, Ativos Totais / Dívida de Longo Prazo[cite: 61, 63, 132].
+        * [cite_start]**Consistência:** Volatilidade do ROE, consistência de Lucro Líquido positivo[cite: 62, 132].
+
+* **Feature de Indústria (Industry Feature - 1 feature):**
+    * [cite_start]Um ID numérico para o setor de atuação da empresa, com base na classificação setorial da B3 ou GICS[cite: 125].
+
+#### 4.4. Algoritmos de Machine Learning
+Com base na superioridade demonstrada no artigo, focaremos em algoritmos de ensemble baseados em árvores de decisão:
+* [cite_start]**Random Forest (RF)** [cite: 175]
+* [cite_start]**Gradient Boosting Machines (GBM)** [cite: 175]
+
+[cite_start]O modelo final será um **ensemble de múltiplos classificadores binários** (e.g., 144 classificadores, como no artigo), onde cada um é treinado com um par `<mos, yh>` diferente[cite: 186].
+
+### 5. Estratégia de Dados
+
+#### 5.1. Fontes de Dados
+1.  **Yahoo Finance (via API `yfinance`):**
+    * **Dados:** Cotações diárias de fechamento, volume, dados de mercado (Market Cap).
+    * **Dados:** Fundamentos trimestrais e anuais recentes (DRE, Balanço Patrimonial, Fluxo de Caixa).
+    * **Cobertura:** Dados recentes e de fácil acesso.
+
+2.  **Web Scraping de Sites de Relações com Investidores (RI):**
+    * **Objetivo:** Obter dados fundamentalistas mais antigos (além do que o Yahoo Finance oferece) para aumentar a profundidade histórica do nosso dataset.
+    * **Funcionamento:**
+        1.  Um script Python (usando `Scrapy` ou `BeautifulSoup`) será desenvolvido para navegar nas seções de "Central de Resultados" ou "Press Releases" dos sites de RI das empresas-alvo.
+        2.  O script irá identificar e baixar os PDFs ou links das demonstrações financeiras trimestrais (ITR) e anuais (DFP).
+        3.  Cada PDF baixado será passado para uma **API de um Large Language Model (LLM)** (e.g., Gemini API).
+        4.  O LLM receberá um *prompt* específico para extrair informações estruturadas do texto não-estruturado do PDF.
+            * **Exemplo de Prompt:** *"Extraia as seguintes métricas financeiras do documento em anexo para o período Q3 2012: 'Receita Líquida', 'Lucro Bruto', 'EBITDA', 'Lucro Líquido', 'Ativo Total', 'Patrimônio Líquido'. Retorne a saída em um formato JSON limpo."*
+        5.  O JSON retornado será validado e armazenado.
+
+#### 5.2. Universo de Ações
+* **Inclusão:** Empresas listadas na B3, pertencentes aos índices IBOVESPA, IBRX 100 e SMLL.
+* [cite_start]**Exclusão:** Ações com preço muito baixo ("penny stocks", e.g., < R$ 1,00) e baixa liquidez diária[cite: 106].
+* [cite_start]**Viés de Sobrevivência:** O pipeline de dados deve, na medida do possível, incluir dados de empresas que foram deslistadas para mitigar o viés de sobrevivência na fase de treinamento[cite: 108].
+
+#### 5.3. Armazenamento
+* **Dados Brutos:** PDFs e HTMLs salvos em um bucket (e.g., AWS S3, Google Cloud Storage).
+* **Dados Estruturados:** Um banco de dados relacional (e.g., PostgreSQL) ou um data lake com arquivos Parquet para armazenar as séries temporais de features e dados fundamentais.
+
+### 6. Requisitos Funcionais
+
+* **Pipeline de Dados (Data Pipeline):**
+    * Deve executar diariamente para buscar novas cotações e semanalmente/trimestralmente para buscar novos fundamentos.
+    * Deve registrar logs de execução, sucessos e falhas na ingestão.
+    * Deve possuir um módulo de validação de dados para checar inconsistências (e.g., valores nulos, outliers).
+
+* **Treinamento do Modelo (Model Training):**
+    * Deve ser possível disparar o treinamento do ensemble de modelos a partir de um comando ou agendamento.
+    * [cite_start]Deve usar validação cruzada baseada no tempo (time-series cross-validation) para avaliar os modelos de forma robusta e evitar *lookahead bias*[cite: 197].
+    * [cite_start]Deve salvar os modelos treinados e seus respectivos relatórios de performance (precisão, recall, matriz de confusão)[cite: 200].
+
+* **Inferência e Backtesting (Inference & Backtesting):**
+    * Deve haver um script que carrega os modelos treinados e gera recomendações para o período mais recente.
+    * [cite_start]Deve haver um módulo de backtesting que simula a performance de um portfólio baseado nas regras de compra e venda inspiradas no artigo[cite: 304, 318, 319].
+
+* **Interface do Usuário (UI - Protótipo):**
+    * Uma interface web simples (e.g., usando Streamlit ou Dash) para exibir:
+        * A lista de ações recomendadas para a semana atual.
+        * O "score" ou ranking de cada ação.
+        * [cite_start]Justificativas para a recomendação, usando técnicas como SHAP (SHapley Additive exPlanations) para mostrar a contribuição das principais features, conforme discutido no artigo[cite: 261, 263].
+
+### 7. Riscos e Dependências
+
+* **Risco de Dados:** A qualidade e a padronização dos dados nos sites de RI podem variar muito, dificultando o scraping. O LLM pode extrair dados incorretos ("alucinar"). **Mitigação:** Implementar regras de validação e, se necessário, ter um passo de verificação humana por amostragem.
+* **Risco de Modelo:** O modelo pode sofrer overfitting aos dados históricos. **Mitigação:** Uso rigoroso de validação cruzada temporal e teste em múltiplos períodos "out-of-sample".
+* **Risco de Mercado:** O comportamento futuro do mercado brasileiro pode divergir radicalmente do passado devido à sua alta volatilidade e sensibilidade a fatores políticos e macroeconômicos. **Mitigação:** Deixar claro que a ferramenta é um auxílio à decisão e não uma garantia de retorno.
+* **Dependência:** O custo e a disponibilidade das APIs de LLMs.
+
+### 8. Fora do Escopo (O que NÃO faremos nesta versão)
+
+* **Execução de Ordens (Trading Bot):** O sistema não se conectará a corretoras para comprar ou vender ações automaticamente.
+* **Recomendação em Tempo Real:** As recomendações serão geradas em base semanal, não em tempo real.
+* [cite_start]**Análise Macroeconômica:** O modelo é estritamente "bottom-up", focado nos fundamentos das empresas, não em previsões de variáveis macroeconômicas[cite: 48].
+* **Gestão de Portfólio Personalizada:** A ferramenta não oferecerá aconselhamento de investimento individualizado.
+
+
+---
